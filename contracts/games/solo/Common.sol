@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../core/Core.sol";
+import "./Core.sol";
+import "hardhat/console.sol";
 
 abstract contract CommonSolo is Core {
   /*==================================================== Events =============================================================*/
 
-  event Created(address indexed player, uint256 requestId, uint256 wager, address[2] tokens);
+  event Created(address indexed player, uint256 requestId, uint256 wager, address token);
 
   event Settled(
     address indexed player,
@@ -46,7 +47,7 @@ abstract contract CommonSolo is Core {
     bytes gameData;
     uint256 wager;
     uint256 startTime;
-    address[2] tokens;
+    address token;
   }
 
   struct Options {
@@ -116,14 +117,24 @@ abstract contract CommonSolo is Core {
   function refundGame(uint256 _requestId) external nonReentrant whenNotCompleted(_requestId) {
     Game memory game = games[_requestId];
     require(game.player == _msgSender(), "Only player");
-    require(
-      game.startTime + refundCooldown < block.timestamp,
-      "Game is not refundable yet"
-    );
+    require(game.startTime + refundCooldown < block.timestamp, "Game is not refundable yet");
+    _refundGame(_requestId);
+  }
 
+  /// @notice function to refund uncompleted game wagers by team role
+  function refundGameByTeam(
+    uint256 _requestId
+  ) external nonReentrant onlyTeam whenNotCompleted(_requestId) {
+    Game memory game = games[_requestId];
+    require(game.startTime + refundCooldown < block.timestamp, "Game is not refundable yet");
+    _refundGame(_requestId);
+  }
+
+  function _refundGame(uint256 _requestId) internal {
+    Game memory _game = games[_requestId];
+ 
+    vaultManager.refund(_game.token, _game.wager * _game.count, 0, _game.player);
     delete games[_requestId];
-
-    vaultManager.refund(game.tokens[0], game.wager * game.count, game.player);
   }
 
   /// @notice shares the amount which escrowed amount while starting the game by player
@@ -141,19 +152,19 @@ abstract contract CommonSolo is Core {
       _game.wager
     );
     /// @notice sets referral reward if player has referee
-    vaultManager.setReferralReward(_game.tokens[0], _game.player, usedWager_, getHouseEdge(_game));
-    vaultManager.mintVestedWINR(_game.tokens[0], usedWager_, _game.player);
+    vaultManager.setReferralReward(_game.token, _game.player, usedWager_, getHouseEdge(_game));
+    vaultManager.mintVestedWINR(_game.token, usedWager_, _game.player);
 
     /// @notice this call transfers the unused wager to player
     if (unusedWager_ != 0) {
-      vaultManager.payback(_game.tokens[0], _game.player, unusedWager_);
+      vaultManager.payback(_game.token, _game.player, unusedWager_);
     }
 
     /// @notice calculates the loss of user if its not zero transfers to Vault
     if (_payout == 0) {
-      vaultManager.payin(_game.tokens[0], usedWager_);
+      vaultManager.payin(_game.token, usedWager_);
     } else {
-      vaultManager.payout(_game.tokens, _game.player, usedWager_, _payout);
+      vaultManager.payout(_game.token, _game.player, usedWager_, _payout);
     }
 
     /// @notice The used wager is the zero point. if the payout is above the wager, player wins
@@ -200,13 +211,7 @@ abstract contract CommonSolo is Core {
   function randomizerFulfill(
     uint256 _requestId,
     uint256[] calldata _randoms
-  )
-    internal
-    override
-    isGameCreated(_requestId)
-    whenNotCompleted(_requestId)
-    nonReentrant
-  {
+  ) internal override isGameCreated(_requestId) whenNotCompleted(_requestId) nonReentrant {
     Game memory game_ = games[_requestId];
     Options memory options_ = options[_requestId];
     uint256[] memory resultNumbers_ = getResultNumbers(game_, _randoms);
@@ -216,6 +221,7 @@ abstract contract CommonSolo is Core {
       options_.stopGain,
       options_.stopLoss
     );
+
 
     emit Settled(
       game_.player,
@@ -239,40 +245,38 @@ abstract contract CommonSolo is Core {
   /// @param _stopGain maximum profit limit
   /// @param _stopLoss maximum loss limit
   /// @param _gameData players decisions according to game
-  /// @param _tokens contains input and output token currencies
+  /// @param _token input and output token
   function _create(
     uint256 _wager,
     uint8 _count,
     uint256 _stopGain,
     uint256 _stopLoss,
     bytes memory _gameData,
-    address[2] memory _tokens
+    address _token
   )
     internal
-    isGameCountAcceptable(_count)
-    isWagerAcceptable(_tokens[0], _wager)
+    // isGameCountAcceptable(_count)
+    // isWagerAcceptable(_token, _wager)
     whenNotPaused
     nonReentrant
   {
+    console.log("pass2");
     address player_ = _msgSender();
+    console.log("pass3");
     uint256 requestId_ = _requestRandom(_count);
-
+    // console.log("pass4");
     /// @notice escrows total wager to Vault Manager
-    vaultManager.escrow(_tokens[0], player_, _count * _wager);
-
-    games[requestId_] = Game(
-      _count,
-      player_,
-      _gameData,
-      _wager,
-      block.timestamp,
-      _tokens
-    );
-
+    vaultManager.escrow(_token, player_, _count * _wager);
+    console.log("pass222");
+    games[requestId_] = Game(_count, player_, _gameData, _wager, block.timestamp, _token);
+    console.log("pass5");
     if (_stopGain != 0 || _stopLoss != 0) {
+      console.log("pass6");
       options[requestId_] = Options(_stopGain, _stopLoss);
+      console.log("pass7");
     }
-
-    emit Created(player_, requestId_, _wager, _tokens);
+    console.log("pass8");
+    emit Created(player_, requestId_, _wager, _token);
+    console.log("pass9");
   }
 }

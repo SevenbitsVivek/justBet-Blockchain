@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "./Common.sol";
+import "hardhat/console.sol";
 
 contract CoinFlip is CommonSolo {
   /*==================================================== Events ==========================================================*/
@@ -131,22 +132,24 @@ contract CoinFlip is CommonSolo {
   /// @param _stopGain maximum profit limit
   /// @param _stopLoss maximum loss limit
   /// @param _gameData players decisions according to game
-  /// @param _tokens contains input and output token currencies
+  /// @param _token which token will be used for a game
   function bet(
     uint256 _wager, 
     uint8 _count,
     uint256 _stopGain,
     uint256 _stopLoss,
     bytes memory _gameData,
-    address[2] memory _tokens
+    address _token
   ) external isChoiceInsideLimits(_gameData) {
+    console.log("pass9");
     _create(
       _wager,
       _count,
       _stopGain,
       _stopLoss,
       _gameData,
-      _tokens
+      _token
     );
+    console.log("pass33");
   }
 }

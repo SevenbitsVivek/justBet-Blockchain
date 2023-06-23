@@ -4,10 +4,10 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "../../interfaces/core/IVaultManager.sol";
-import "../helpers/RandomizerConsumer.sol";
-import "../helpers/Access.sol";
-import "../helpers/Number.sol";
+import "./IVaultManager.sol";
+import "./RandomizerConsumer.sol";
+import "./Access.sol";
+import "./Number.sol";
 
 abstract contract Core is Pausable, Access, ReentrancyGuard, NumberHelper, RandomizerConsumer {
   /*==================================================== Events ==========================================================*/
@@ -28,6 +28,8 @@ abstract contract Core is Pausable, Access, ReentrancyGuard, NumberHelper, Rando
 
   /// @notice used to calculate precise decimals
   uint256 public constant PRECISION = 1e18;
+  /// @notice used to calculate Referral Rewards
+  uint32 public constant BASIS_POINTS = 1e4;
   /// @notice Vault manager address
   IVaultManager public vaultManager;
 
